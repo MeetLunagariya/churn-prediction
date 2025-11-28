@@ -18,7 +18,7 @@ DATA_URL = (
     "master/data/Telco-Customer-Churn.csv"
 )
 DEST = Path("data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv")
-EXPECTED_SHA256: str | None = None  # set after first verified download
+EXPECTED_SHA256: str | None = "16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91"
 
 
 def main() -> int:
