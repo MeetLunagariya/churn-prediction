@@ -39,6 +39,10 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "ipykernel>=6.29",
+    "jupytext>=1.16",
+    "nbconvert>=7.16",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
     "types-PyYAML",
 ]
 
@@ -63,6 +67,8 @@ ignore = ["E501", "N803", "N806"]
 # Schema field names mirror the upstream dataset's exact column names
 "src/churn/data/schema.py" = ["N815"]
 "tests/*" = ["N802"]
+# Notebook scripts use unicode (×, –) deliberately in prose
+"notebooks/*" = ["RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 python_version = "3.11"

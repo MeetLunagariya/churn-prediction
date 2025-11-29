@@ -27,9 +27,7 @@ mlartifacts/
 .idea/
 *.swp
 
-# Reports (binary outputs)
-reports/figures/*
-!reports/figures/.gitkeep
+# Reports — track figures (interviewer-facing), ignore generated HTML
 reports/drift_report.html
 
 # Test / lint cache
