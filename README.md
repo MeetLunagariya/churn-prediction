@@ -14,17 +14,24 @@ Retention teams need two things: an accurate signal of who is about to churn, an
 
 ## Results
 
-_Populated at end of Week 3._
+### Baseline — Logistic Regression (`v0.1.0-baseline`)
 
-| Metric | Value | 95% CI |
+Trained on a 70/15/15 stratified split (seed 42), 4,929 training rows.
+Confidence intervals come in Week 3 (bootstrap, n=1000).
+
+| Metric | Validation | Test |
 |---|---|---|
-| ROC-AUC | TBD | (TBD, TBD) |
-| PR-AUC | TBD | (TBD, TBD) |
-| Brier score (calibrated) | TBD | — |
-| Expected utility @ optimal threshold | TBD | — |
-| Worst-slice recall | TBD | — |
+| ROC-AUC | 0.828 | 0.847 |
+| PR-AUC | 0.629 | 0.638 |
+| Brier score | 0.142 | 0.137 |
+| F1 @ threshold=0.5 | 0.568 | 0.607 |
 
-Full breakdown: [reports/model_card.md](reports/model_card.md).
+Reproduce: `make data && make train`. The MLflow run lands in `./mlruns/`.
+
+### Production model — Week 2
+
+LightGBM with Optuna tuning, calibration, and threshold optimization.
+Numbers and full breakdown will land in [reports/model_card.md](reports/model_card.md).
 
 ## Approach
 
@@ -43,17 +50,30 @@ git clone https://github.com/meetlunagariya/churn-prediction.git
 cd churn-prediction
 make install     # uv sync + pre-commit hooks
 make data        # download dataset (~1 MB)
-make test        # run unit tests
+make test        # run unit tests (15 tests, 93% coverage)
+make train       # train baseline LR + log to MLflow
+```
+
+Inspect runs:
+
+```bash
+uv run mlflow ui --backend-store-uri ./mlruns
 ```
 
 Later milestones add:
 
 ```bash
-make train       # train + log to MLflow
-make serve       # FastAPI on :8000
-make app         # Streamlit on :8501
+make serve       # FastAPI on :8000   (Week 4)
+make app         # Streamlit on :8501 (Week 4)
 make docker      # docker compose stack
 ```
+
+## Notebooks
+
+The EDA is authored as a jupytext-paired script: edit
+[`notebooks/01_eda.py`](notebooks/01_eda.py), regenerate the .ipynb with
+`uv run jupytext --to ipynb --execute notebooks/01_eda.py`. The committed
+.ipynb is what renders on GitHub.
 
 ## Project structure
 
