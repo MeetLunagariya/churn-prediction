@@ -13,7 +13,12 @@ import pandas as pd
 
 from churn.data.splits import stratified_split
 from churn.models.evaluate import compute_metrics
-from churn.models.train import build_baseline_pipeline, train_baseline
+from churn.models.train import (
+    build_baseline_pipeline,
+    engineer_split,
+    train_baseline,
+    train_model,
+)
 
 
 def _bigger_synth_frame(n: int = 200, seed: int = 0) -> pd.DataFrame:
@@ -91,6 +96,42 @@ def test_baseline_beats_marginal_on_easy_synthetic_signal() -> None:
     # generous threshold — point is to catch a wholesale pipeline break
     assert result.val_metrics["roc_auc"] > 0.7
     assert result.test_metrics["roc_auc"] > 0.7
+
+
+def test_hgb_is_reproducible_from_seed() -> None:
+    df = _bigger_synth_frame(n=200, seed=0)
+    split = stratified_split(df, seed=7)
+
+    a = train_model("hgb", split, seed=42)
+    b = train_model("hgb", split, seed=42)
+
+    proba_a = a.pipeline.predict_proba(split.X_test)[:, 1]
+    proba_b = b.pipeline.predict_proba(split.X_test)[:, 1]
+    np.testing.assert_allclose(proba_a, proba_b, rtol=1e-12, atol=1e-12)
+    assert a.val_metrics == b.val_metrics
+
+
+def test_hgb_with_engineered_features_runs() -> None:
+    df = _bigger_synth_frame(n=300, seed=2)
+    split = stratified_split(df, seed=7)
+    result = train_model("hgb", split, seed=42, use_engineered=True)
+    assert result.val_metrics["roc_auc"] > 0.5
+    # engineered features should appear in the fitted preprocessor output
+    cols = result.pipeline.named_steps["preprocessor"].get_feature_names_out()
+    assert any("tenure_bucket" in c for c in cols)
+    assert "charge_ratio" in list(cols)
+    assert "total_services" in list(cols)
+
+
+def test_engineer_split_preserves_lengths() -> None:
+    df = _bigger_synth_frame(n=150, seed=3)
+    split = stratified_split(df, seed=7)
+    engineered = engineer_split(split)
+    assert len(engineered.X_train) == len(split.X_train)
+    assert len(engineered.X_val) == len(split.X_val)
+    assert len(engineered.X_test) == len(split.X_test)
+    # y series should be identical objects
+    assert engineered.y_train is split.y_train
 
 
 def test_compute_metrics_returns_expected_keys() -> None:
