@@ -1,0 +1,28 @@
+# HistGradientBoostingClassifier with engineered features,
+# Optuna-tuned over a 5-fold CV, and isotonic-calibrated on the val set.
+
+experiment: churn-week2
+run_name: hgb-engineered-tuned-calibrated
+seed: 42
+
+split:
+  val_size: 0.15
+  test_size: 0.15
+  seed: 42
+
+features:
+  use_engineered: true
+
+model:
+  name: hgb
+  class_weight: null
+  params: {}
+
+tuning:
+  enabled: true
+  n_trials: 30
+  n_splits: 5
+
+calibration:
+  enabled: true
+  method: isotonic

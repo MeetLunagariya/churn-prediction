@@ -1,7 +1,9 @@
-# Training configuration for the baseline.
+# Training configuration for the LR baseline.
+# Use configs/train_lightgbm.yaml and configs/train_xgboost.yaml for
+# Week 2 alternatives.
 
-experiment: churn-baseline
-run_name: logreg-baseline
+experiment: churn-week2
+run_name: lr-baseline
 seed: 42
 
 split:
@@ -9,7 +11,17 @@ split:
   test_size: 0.15
   seed: 42
 
+features:
+  use_engineered: false
+
 model:
-  name: logistic_regression
-  max_iter: 1000
+  name: lr
   class_weight: null
+  params:
+    max_iter: 1000
+
+tuning:
+  enabled: false
+
+calibration:
+  enabled: false
