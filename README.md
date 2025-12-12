@@ -14,24 +14,34 @@ Retention teams need two things: an accurate signal of who is about to churn, an
 
 ## Results
 
-### Baseline — Logistic Regression (`v0.1.0-baseline`)
+Both models trained on a 70/15/15 stratified split (seed 42), 4,929
+training rows. Confidence intervals come in Week 3 (bootstrap, n=1000).
 
-Trained on a 70/15/15 stratified split (seed 42), 4,929 training rows.
-Confidence intervals come in Week 3 (bootstrap, n=1000).
+| Model | Val ROC-AUC | Val PR-AUC | Test ROC-AUC | Test PR-AUC | Test Brier | Test ECE |
+|---|---|---|---|---|---|---|
+| LR baseline (`v0.1.0`) | 0.828 | 0.629 | 0.847 | 0.638 | 0.137 | 0.026 |
+| **HGB tuned + calibrated (`v0.2.0`)** | **0.843** | **0.643** | **0.853** | **0.641** | **0.134** | **0.018** |
 
-| Metric | Validation | Test |
-|---|---|---|
-| ROC-AUC | 0.828 | 0.847 |
-| PR-AUC | 0.629 | 0.638 |
-| Brier score | 0.142 | 0.137 |
-| F1 @ threshold=0.5 | 0.568 | 0.607 |
+- HGB picks up +0.6 ROC-AUC and a 30% reduction in ECE versus the
+  baseline on test; the bulk of the lift comes from engineered features
+  + Optuna tuning, calibration buys lower Brier and ECE at a tiny PR-AUC
+  cost. Best params from a 30-trial × 5-fold-CV search:
+  `learning_rate=0.032, max_iter=200, max_leaf_nodes=88, max_depth=3,
+  min_samples_leaf=54, l2_regularization=0.017`.
+- Note: scikit-learn's `HistGradientBoostingClassifier` is used in place
+  of LightGBM/XGBoost — sklearn HGB ships without a libomp dependency,
+  which avoids a brew install for anyone running this on macOS. See
+  [docs/decisions/0002-hgb-over-lightgbm.md](docs/decisions/0002-hgb-over-lightgbm.md).
 
-Reproduce: `make data && make train`. The MLflow run lands in `./mlruns/`.
+Reproduce:
 
-### Production model — Week 2
+```bash
+make data
+make train                                                    # LR baseline
+uv run python scripts/train.py --config configs/train_hgb.yaml  # tuned HGB
+```
 
-LightGBM with Optuna tuning, calibration, and threshold optimization.
-Numbers and full breakdown will land in [reports/model_card.md](reports/model_card.md).
+Full breakdown: [reports/model_card.md](reports/model_card.md).
 
 ## Approach
 
