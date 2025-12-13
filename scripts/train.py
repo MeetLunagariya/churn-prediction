@@ -2,9 +2,8 @@
 
 Usage::
 
-    uv run python scripts/train.py --config configs/train.yaml
-    uv run python scripts/train.py --config configs/train_lightgbm.yaml
-    uv run python scripts/train.py --config configs/train_xgboost.yaml
+    uv run python scripts/train.py --config configs/train.yaml      # LR baseline
+    uv run python scripts/train.py --config configs/train_hgb.yaml  # HGB tuned + calibrated
 
 Reads everything from the config: model name, engineered-feature flag,
 optional Optuna tuning, optional calibration. The CLI is intentionally
@@ -102,7 +101,7 @@ def main(
             n_trials = int(tuning_cfg.get("n_trials", 30))
             n_splits = int(tuning_cfg.get("n_splits", 5))
             console.print(
-                f"[bold]Running Optuna search ({n_trials} trials, " f"{n_splits}-fold CV)…[/bold]"
+                f"[bold]Running Optuna search ({n_trials} trials, {n_splits}-fold CV)…[/bold]"
             )
             best_params, study = tune_hgb(
                 split.X_train,
