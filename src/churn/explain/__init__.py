@@ -1,1 +1,5 @@
-"""SHAP-based explainability. Populated in Week 3."""
+"""SHAP-based explainability."""
+
+from churn.explain.shap_explainer import Explanation, HGBExplainer
+
+__all__ = ["Explanation", "HGBExplainer"]
