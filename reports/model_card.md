@@ -1,7 +1,8 @@
 # Model Card — Churn Prediction
 
-Status: **v0.2-modeling** (LR baseline + HGB Week 2 model). Calibration
-done, threshold optimization and slice analysis arrive in Week 3.
+Status: **v0.3-evaluation** (LR baseline + HGB calibrated + cost-weighted
+threshold + slice analysis + SHAP explainability + drift harness).
+Deployment arrives in Week 4.
 
 ## Intended use
 
@@ -52,6 +53,89 @@ _Filled in by the Week 2 commit that closes v0.2.0._
 | LR baseline | 0.828 | 0.629 | 0.847 | 0.638 | 0.137 | 0.026 |
 | HGB tuned (uncalibrated) | 0.836 | 0.644 | 0.854 | 0.670 | 0.137 | 0.029 |
 | **HGB tuned + isotonic-calibrated** | **0.843** | **0.643** | **0.853** | **0.641** | **0.134** | **0.018** |
+
+95% bootstrap CIs on the calibrated HGB test set (n=1,057, 1,000
+resamples, seed=42):
+
+| Metric | Point | 95% CI |
+|---|---|---|
+| ROC-AUC | 0.8530 | [0.8305, 0.8758] |
+| PR-AUC  | 0.6406 | [0.5841, 0.6963] |
+| Brier   | 0.1340 | [0.1219, 0.1462] |
+
+## Cost-weighted decision
+
+Under the illustrative cost matrix from
+[ADR 0003](../docs/decisions/0003-cost-matrix.md) (`S=$500, R=$50`):
+
+| Threshold | Expected utility | Vs naive 0.5 |
+|---|---|---|
+| **0.120 (optimum)** | **$100,500** | **+49.9%** |
+| 0.5 (naive) | $67,050 | — |
+
+Sensitivity: thresholds in [0.03, 0.15] are all within 5% of the
+optimum.
+
+## Slice analysis (calibrated HGB, test set)
+
+ROC-AUC by subgroup, n ≥ 30:
+
+| Slice | Value | n | Positive rate | ROC-AUC |
+|---|---|---|---|---|
+| Contract | Month-to-month | 583 | 0.424 | 0.767 |
+| Contract | One year | 224 | 0.125 | **0.718** ← weakest |
+| Contract | Two year | 250 | 0.020 | 0.882 |
+| tenure_bucket | 0-6 | 225 | 0.573 | 0.766 |
+| tenure_bucket | 7-12 | 102 | 0.284 | 0.739 |
+| tenure_bucket | 13-24 | 154 | 0.292 | 0.807 |
+| tenure_bucket | 25-48 | 239 | 0.213 | 0.790 |
+| tenure_bucket | 49+ | 337 | 0.077 | 0.883 |
+| InternetService | DSL | 358 | 0.184 | 0.830 |
+| InternetService | Fiber optic | 480 | 0.413 | 0.787 |
+| InternetService | No | 219 | 0.073 | 0.909 |
+| PaymentMethod | Bank transfer | 237 | 0.190 | 0.902 |
+| PaymentMethod | Credit card | 222 | 0.176 | 0.859 |
+| PaymentMethod | Electronic check | 363 | 0.419 | 0.790 |
+| PaymentMethod | Mailed check | 235 | 0.187 | 0.828 |
+
+The weakest slice (One year contracts) has too few churners (n=28) for
+the ranking task to be easy. Worth flagging to the retention team but
+not necessarily a model defect.
+
+## Explainability (SHAP)
+
+Top 10 features by mean |SHAP value| on the test set:
+
+| Rank | Feature | Mean abs SHAP |
+|---|---|---|
+| 1 | Contract_Month-to-month | 0.681 |
+| 2 | charge_ratio *(engineered)* | 0.518 |
+| 3 | OnlineSecurity_No | 0.195 |
+| 4 | TechSupport_No | 0.192 |
+| 5 | Contract_Two year | 0.161 |
+| 6 | MonthlyCharges | 0.150 |
+| 7 | InternetService_Fiber optic | 0.150 |
+| 8 | PaymentMethod_Electronic check | 0.141 |
+| 9 | PaperlessBilling_No | 0.096 |
+| 10 | tenure | 0.076 |
+
+Notable: the engineered `charge_ratio` is the #2 feature globally,
+ahead of either of its raw inputs. The retention team's intuition that
+"contract type matters most" is confirmed quantitatively.
+
+Per-customer waterfalls for the highest- and lowest-risk test rows
+are saved as `reports/figures/12_shap_high_risk.png` and
+`reports/figures/13_shap_low_risk.png`.
+
+## Drift monitoring
+
+Simulated by splitting the test set 70/30 by index (placeholder for
+real timestamped batches). All six monitored signals (tenure,
+MonthlyCharges, charge_ratio, Contract, InternetService, and the
+prediction score itself) classify as `stable` — expected, since both
+windows come from the same distribution. The harness lives in
+`src/churn/monitoring/drift.py` and is wired up to be replaced by real
+timestamped batches in production.
 
 Optuna best params (30 trials × 5-fold stratified CV, PR-AUC objective):
 - `learning_rate`: 0.032

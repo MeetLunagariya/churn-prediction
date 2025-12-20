@@ -15,30 +15,56 @@ Retention teams need two things: an accurate signal of who is about to churn, an
 ## Results
 
 Both models trained on a 70/15/15 stratified split (seed 42), 4,929
-training rows. Confidence intervals come in Week 3 (bootstrap, n=1000).
+training rows. 95% CIs from 1,000-sample bootstrap on the test set.
 
-| Model | Val ROC-AUC | Val PR-AUC | Test ROC-AUC | Test PR-AUC | Test Brier | Test ECE |
-|---|---|---|---|---|---|---|
-| LR baseline (`v0.1.0`) | 0.828 | 0.629 | 0.847 | 0.638 | 0.137 | 0.026 |
-| **HGB tuned + calibrated (`v0.2.0`)** | **0.843** | **0.643** | **0.853** | **0.641** | **0.134** | **0.018** |
+| Model | ROC-AUC (test) | PR-AUC (test) | Brier | ECE |
+|---|---|---|---|---|
+| LR baseline (`v0.1.0`) | 0.847 | 0.638 | 0.137 | 0.026 |
+| **HGB tuned + calibrated (`v0.2.0`)** | **0.853** [0.831, 0.876] | 0.641 [0.584, 0.696] | **0.134** [0.122, 0.146] | **0.018** |
+
+### Cost-weighted decision (`v0.3.0`)
+
+Under an illustrative cost matrix (`S=$500` revenue per save, `R=$50`
+retention offer — see [ADR 0003](docs/decisions/0003-cost-matrix.md)):
+
+| Threshold | Predicted positives | Expected utility | vs. naive |
+|---|---|---|---|
+| **0.120 (optimal)** | larger cohort | **$100,500** | **+49.9%** |
+| 0.500 (naive) | smaller cohort | $67,050 | — |
+
+Sensitivity: thresholds in [0.03, 0.15] are all within 5% of the
+optimum, so the operating point is not fragile.
+
+### Slice analysis
+
+Weakest slice on test: **`Contract = One year`** (n=224, ROC-AUC 0.718
+— 14 points below the 0.853 global). Strongest: `Contract = Two year`
+(0.882) and `InternetService = No` (0.909). Full table in
+[reports/model_card.md](reports/model_card.md).
+
+### Explainability
+
+SHAP global ranking (top 5 by mean |SHAP|): `Contract_Month-to-month`,
+`charge_ratio` (engineered), `OnlineSecurity_No`, `TechSupport_No`,
+`Contract_Two year`. Per-customer waterfalls in
+[reports/figures/](reports/figures/).
 
 - HGB picks up +0.6 ROC-AUC and a 30% reduction in ECE versus the
   baseline on test; the bulk of the lift comes from engineered features
-  + Optuna tuning, calibration buys lower Brier and ECE at a tiny PR-AUC
-  cost. Best params from a 30-trial × 5-fold-CV search:
+  + Optuna tuning. Calibration buys lower Brier and ECE at a tiny
+  PR-AUC cost. Best params:
   `learning_rate=0.032, max_iter=200, max_leaf_nodes=88, max_depth=3,
   min_samples_leaf=54, l2_regularization=0.017`.
-- Note: scikit-learn's `HistGradientBoostingClassifier` is used in place
-  of LightGBM/XGBoost — sklearn HGB ships without a libomp dependency,
-  which avoids a brew install for anyone running this on macOS. See
-  [docs/decisions/0002-hgb-over-lightgbm.md](docs/decisions/0002-hgb-over-lightgbm.md).
+- scikit-learn's `HistGradientBoostingClassifier` is used in place of
+  LightGBM/XGBoost — see [ADR 0002](docs/decisions/0002-hgb-over-lightgbm.md).
 
 Reproduce:
 
 ```bash
 make data
-make train                                                    # LR baseline
-uv run python scripts/train.py --config configs/train_hgb.yaml  # tuned HGB
+make train                                                       # LR baseline
+uv run python scripts/train.py --config configs/train_hgb.yaml   # tuned HGB
+uv run python notebooks/03_model_diagnostics.py                  # threshold, slices, SHAP, drift
 ```
 
 Full breakdown: [reports/model_card.md](reports/model_card.md).
