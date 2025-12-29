@@ -6,7 +6,7 @@
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Live demo:** _coming v1.0_ · **API docs:** _coming v1.0_ · **Model card:** [reports/model_card.md](reports/model_card.md)
+**Local demo:** `make docker` → API on :8000, dashboard on :8501. **API docs:** [`/docs`](http://localhost:8000/docs) (OpenAPI). **Model card:** [reports/model_card.md](reports/model_card.md).
 
 ## Why this project
 
@@ -68,6 +68,57 @@ uv run python notebooks/03_model_diagnostics.py                  # threshold, sl
 ```
 
 Full breakdown: [reports/model_card.md](reports/model_card.md).
+
+## Serving (`v1.0.0`)
+
+### Architecture
+
+```
+┌──────────────────┐   /predict      ┌────────────────────┐
+│ Streamlit (8501) │ ──────────────▶ │  FastAPI (8000)    │
+│  customer lookup │ ◀────────────── │  + Prometheus      │
+│  what-if         │   /explain      │  + structlog       │
+│  about           │                  └────────┬───────────┘
+└──────────────────┘                           │
+                                               ▼
+                                       ┌───────────────┐
+                                       │ ChurnPredictor│
+                                       │ joblib model  │
+                                       │ + SHAP        │
+                                       └───────────────┘
+```
+
+### Run locally
+
+```bash
+make build                # train + save calibrated HGB to models/churn_v1.joblib
+make serve                # FastAPI on :8000 (rebuilds artifact first)
+make app                  # Streamlit on :8501 (separate terminal)
+# or, in one command:
+make docker               # docker compose up --build
+```
+
+### API endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET  | `/health` | Liveness + model-loaded check |
+| GET  | `/metrics` | Prometheus counters and latency histograms |
+| GET  | `/model/info` | Version, decision threshold, training metrics |
+| POST | `/predict` | Single customer → probability + class + recommended action |
+| POST | `/predict/batch` | Up to 1000 customers in one call |
+| POST | `/explain?top_k=5` | Per-customer SHAP top-N contributions |
+
+Pydantic v2 schemas reject malformed inputs with 422 at the request boundary.
+Structured JSON logs via structlog include request IDs and latency.
+
+### Example
+
+```bash
+curl -s -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d @tests/fixtures/sample_customer.json | jq
+```
 
 ## Approach
 

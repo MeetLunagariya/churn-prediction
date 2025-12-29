@@ -1,8 +1,8 @@
 # Model Card — Churn Prediction
 
-Status: **v0.3-evaluation** (LR baseline + HGB calibrated + cost-weighted
-threshold + slice analysis + SHAP explainability + drift harness).
-Deployment arrives in Week 4.
+Status: **v1.0.0** — full lifecycle landed: LR baseline, HGB calibrated +
+threshold-optimized, slice analysis, SHAP explainability, drift harness,
+FastAPI inference service, Streamlit ops dashboard, Dockerized.
 
 ## Intended use
 
