@@ -18,6 +18,9 @@ data/processed/*
 !data/**/.gitkeep
 models/*
 !models/.gitkeep
+# Committed production artifact for the public Streamlit demo
+!models/churn_v1.joblib
+!models/churn_v1.json
 mlruns/
 mlartifacts/
 

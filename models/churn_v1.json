@@ -1,0 +1,34 @@
+{
+  "best_params": {
+    "l2_regularization": 0.017127436834329976,
+    "learning_rate": 0.03213803416203723,
+    "max_depth": 3,
+    "max_iter": 200,
+    "max_leaf_nodes": 88,
+    "min_samples_leaf": 54
+  },
+  "cost_matrix": {
+    "retention_cost": 50.0,
+    "savings_per_save": 500.0
+  },
+  "created_at": "2026-05-13T07:11:25.770757+00:00",
+  "decision_threshold": 0.09,
+  "feature_set": "engineered",
+  "model": "HistGradientBoostingClassifier + IsotonicCalibration",
+  "name": "churn_v1",
+  "seed": 42,
+  "threshold_sensitivity_range": [
+    0.03,
+    0.15000000000000002
+  ],
+  "training_metrics": {
+    "n_test": 1057,
+    "n_train": 4929,
+    "n_val": 1057,
+    "test_brier": 0.13402486438781236,
+    "test_ece": 0.017851375787635664,
+    "test_pr_auc": 0.640576050291038,
+    "test_roc_auc": 0.8529715940430227
+  },
+  "version": "1.0.0"
+}
