@@ -1,14 +1,25 @@
 """Streamlit ops dashboard for the churn prediction service.
 
-Calls the FastAPI service over HTTP (so this demo *uses* the API the
-same way a real retention tool would). The URL is configurable via
-the ``CHURN_API_URL`` environment variable; default is the local
-uvicorn at :8000.
+Operates in two modes:
+
+  * **API mode** — when ``CHURN_API_URL`` is set, the dashboard calls the
+    FastAPI service over HTTP (the production shape). Used by
+    docker-compose; expects the api container at http://api:8000.
+  * **Embedded mode** (default) — calls ``ChurnPredictor`` directly in
+    the same process. Used for local ``make app`` and for the public
+    deployment on Streamlit Community Cloud, where running a separate
+    API container would be wasteful.
+
+On first run the app auto-downloads the dataset if missing — needed
+for the Customer-lookup tab — so a cloud clone-and-go just works.
 """
 
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -16,39 +27,95 @@ import httpx
 import pandas as pd
 import streamlit as st
 
-from churn.data.load import load_raw
+from churn.data.load import RAW_FILENAME, load_raw
 
-API_URL = os.environ.get("CHURN_API_URL", "http://localhost:8000")
+API_URL = os.environ.get("CHURN_API_URL", "").strip() or None
 DATA_PATH = Path("data/raw")
+RAW_CSV = DATA_PATH / RAW_FILENAME
 
 st.set_page_config(page_title="Churn Ops", page_icon="📉", layout="wide")
 st.title("📉 Churn Ops Dashboard")
-st.caption(f"backed by `{API_URL}` — calls `/predict`, `/explain`, `/model/info`")
+mode_label = "API mode → " + API_URL if API_URL else "embedded mode (in-process predictor)"
+st.caption(mode_label)
+
+
+@st.cache_resource(show_spinner="Downloading dataset…")
+def ensure_dataset() -> Path:
+    if not RAW_CSV.exists():
+        subprocess.check_call([sys.executable, "scripts/download_data.py"])
+    return RAW_CSV
+
+
+@st.cache_resource(show_spinner="Loading model…")
+def get_predictor() -> Any:
+    """Lazy-load the local predictor (embedded mode only)."""
+    from churn.serving.predictor import ChurnPredictor
+
+    p = ChurnPredictor()
+    p.load()
+    return p
+
+
+def _post_json(path: str, payload: Any, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    assert API_URL is not None
+    r = httpx.post(f"{API_URL}{path}", json=payload, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def _get_json(path: str) -> dict[str, Any]:
+    assert API_URL is not None
+    r = httpx.get(f"{API_URL}{path}", timeout=5)
+    r.raise_for_status()
+    return r.json()
+
+
+# ----- mode-agnostic adapters -----
+
+
+def fetch_model_info() -> dict[str, Any]:
+    if API_URL is not None:
+        return _get_json("/model/info")
+    return get_predictor().info()
+
+
+def call_predict(customer: dict[str, Any]) -> dict[str, Any]:
+    if API_URL is not None:
+        return _post_json("/predict", customer)
+    pred = get_predictor().predict([customer])[0]
+    d = asdict(pred)
+    return {
+        "customerID": d["customer_id"],
+        "churn_probability": d["probability"],
+        "churn_class": d["class_label"],
+        "threshold_used": d["threshold_used"],
+        "recommended_action": d["recommended_action"],
+        "model_version": d["model_version"],
+    }
+
+
+def call_explain(customer: dict[str, Any], top_k: int = 8) -> dict[str, Any]:
+    if API_URL is not None:
+        return _post_json("/explain", customer, params={"top_k": top_k})
+    exp = get_predictor().explain(customer, top_k=top_k)
+    return {
+        "customerID": exp.customer_id,
+        "churn_probability": exp.probability,
+        "churn_class": exp.class_label,
+        "base_value": exp.base_value,
+        "top_features": [
+            {"feature": name, "shap_value": v, "abs_value": av}
+            for (name, v, av) in exp.top_features
+        ],
+        "model_version": exp.model_version,
+    }
 
 
 @st.cache_data(show_spinner=False)
 def load_test_customers() -> pd.DataFrame:
+    ensure_dataset()
     df = load_raw(DATA_PATH)
     return df.head(200).reset_index(drop=True)
-
-
-@st.cache_data(ttl=60, show_spinner=False)
-def fetch_model_info() -> dict[str, Any]:
-    r = httpx.get(f"{API_URL}/model/info", timeout=5)
-    r.raise_for_status()
-    return r.json()
-
-
-def call_predict(customer: dict[str, Any]) -> dict[str, Any]:
-    r = httpx.post(f"{API_URL}/predict", json=customer, timeout=10)
-    r.raise_for_status()
-    return r.json()
-
-
-def call_explain(customer: dict[str, Any], top_k: int = 8) -> dict[str, Any]:
-    r = httpx.post(f"{API_URL}/explain", params={"top_k": top_k}, json=customer, timeout=15)
-    r.raise_for_status()
-    return r.json()
 
 
 with st.sidebar:
@@ -65,7 +132,7 @@ with st.sidebar:
         st.metric("Decision threshold", f"{info['decision_threshold']:.3f}")
         st.metric("Test ROC-AUC", f"{info['training_metrics']['test_roc_auc']:.3f}")
     except Exception as exc:
-        st.error(f"API not reachable at {API_URL}")
+        st.error("Model not reachable")
         st.caption(str(exc))
 
 
@@ -109,7 +176,7 @@ if mode == "Customer lookup":
     }
 
     if st.button("Score this customer", type="primary"):
-        with st.spinner("Calling /predict and /explain…"):
+        with st.spinner("Scoring…"):
             pred = call_predict(customer_payload)
             explanation = call_explain(customer_payload, top_k=8)
         render_prediction(pred)
@@ -167,7 +234,7 @@ elif mode == "What-if simulator":
         "TotalCharges": float(monthly * max(tenure, 1)),
     }
     if st.button("Score what-if", type="primary"):
-        with st.spinner("Calling /predict and /explain…"):
+        with st.spinner("Scoring…"):
             pred = call_predict(customer_payload)
             explanation = call_explain(customer_payload, top_k=8)
         render_prediction(pred)

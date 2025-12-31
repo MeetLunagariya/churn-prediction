@@ -6,7 +6,7 @@
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Local demo:** `make docker` → API on :8000, dashboard on :8501. **API docs:** [`/docs`](http://localhost:8000/docs) (OpenAPI). **Model card:** [reports/model_card.md](reports/model_card.md).
+**Live demo:** _deploy your own via_ [`docs/deployment.md`](docs/deployment.md) (Streamlit Community Cloud — 3 min, free). **Local:** `make docker` → :8000 + :8501. **API docs:** `/docs` (OpenAPI). **Model card:** [reports/model_card.md](reports/model_card.md).
 
 ## Why this project
 
