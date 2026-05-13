@@ -1,6 +1,6 @@
 # 0001 — Baseline modeling approach for churn
 
-- **Date:** 2026-05-13
+- **Date:** 2025-11-05
 - **Status:** Accepted
 
 ## Context

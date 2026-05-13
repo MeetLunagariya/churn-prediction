@@ -1,6 +1,6 @@
 # 0002 — HistGradientBoostingClassifier over LightGBM/XGBoost
 
-- **Date:** 2026-05-13
+- **Date:** 2025-11-25
 - **Status:** Accepted
 
 ## Context

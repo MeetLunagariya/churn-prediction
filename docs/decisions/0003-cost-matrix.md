@@ -1,6 +1,6 @@
 # 0003 — Cost matrix for retention decisions
 
-- **Date:** 2026-05-13
+- **Date:** 2025-12-15
 - **Status:** Accepted (illustrative; production deployment requires
   retention-team-validated values)
 
