@@ -2,7 +2,7 @@
 
 > Predict which telco customers will churn next cycle, explain *why*, and recommend retention actions — exposed as a FastAPI inference service and a Streamlit ops dashboard.
 
-[![CI](https://github.com/meetlunagariya/churn-prediction/actions/workflows/ci.yml/badge.svg)](https://github.com/meetlunagariya/churn-prediction/actions)
+[![CI](https://github.com/MeetLunagariya/churn-prediction/actions/workflows/ci.yml/badge.svg)](https://github.com/MeetLunagariya/churn-prediction/actions)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -133,7 +133,7 @@ curl -s -X POST http://localhost:8000/predict \
 ## Quickstart
 
 ```bash
-git clone https://github.com/meetlunagariya/churn-prediction.git
+git clone https://github.com/MeetLunagariya/churn-prediction.git
 cd churn-prediction
 make install     # uv sync + pre-commit hooks
 make data        # download dataset (~1 MB)
